@@ -820,7 +820,7 @@ module Isupipe
     # 同等 path っぽいとこに置いてあります
     get '/api/user/:username/icon' do
       username = params[:username]
-      user = tx.xquery('SELECT * FROM users WHERE name = ? LIMIT 1', username).first
+      user = db_conn.xquery('SELECT * FROM users WHERE name = ? LIMIT 1', username).first
       unless user
         raise HttpError.new(404, 'not found user that has the given username')
       end
@@ -829,7 +829,7 @@ module Isupipe
 
     get '/api/shirokanezoo/usericon/:username' do
       username = params[:username]
-      user = tx.xquery('SELECT id, icon_hash FROM users WHERE name = ? LIMIT 1', username).first
+      user = db_conn.xquery('SELECT id, icon_hash FROM users WHERE name = ? LIMIT 1', username).first
       unless user
         raise HttpError.new(404, 'not found user that has the given username')
       end
