@@ -1,3 +1,3 @@
 #!/bin/bash
-. /home/isucon/git/local.env.sh
+. /home/isucon/git/env.local.sh
 exec "$@"
