@@ -54,6 +54,7 @@ CREATE TABLE `livestreams` (
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 alter table livestreams add index idx1 (user_id);
+alter table livestreams add index idx2 (score asc, id asc);
 
 -- ライブ配信予約枠 / WITH UPDATE
 CREATE TABLE `reservation_slots` (
