@@ -843,7 +843,11 @@ module Isupipe
         status 304
         ''
       else
-        headers 'X-Accel-Redirect' => "/api/shirokanezoo/usericon2/#{username}"
+        redir =  "/api/shirokanezoo/usericon2/#{username}"
+        headers(
+          'X-Accel-Redirect' => redir,
+          'X-Zoo-Redirect' => redir,
+        )
         ''
       end
     end
