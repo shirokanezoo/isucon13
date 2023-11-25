@@ -393,7 +393,7 @@ module Isupipe
 
       ls_rows = db_conn.xquery('SELECT * FROM livestreams WHERE user_id = ?', user_id).to_a
       ls_tags = livestream_tags_preload(db_conn, ls_rows)
-      ls_users = users_preload(tx, ls_rows.map { _1.fetch(:user_id) })
+      ls_users = users_preload(db_conn, ls_rows.map { _1.fetch(:user_id) })
       livestreams = ls_rows.map do |livestream_model|
         fill_livestream_response(tx, livestream_model, all_tags: ls_tags, all_users: ls_users)
       end
