@@ -135,12 +135,12 @@ module Isupipe
         end
       end
 
-      def fill_livecomment_response(tx, livecomment_model, livestream_model: nil)
+      def fill_livecomment_response(tx, livecomment_model, livestream_model: nil, all_livestream_tags:)
         comment_owner_model = tx.xquery('SELECT * FROM users WHERE id = ?', livecomment_model.fetch(:user_id)).first
         comment_owner = fill_user_response(tx, comment_owner_model)
 
         livestream_model = livestream_model || tx.xquery('SELECT * FROM livestreams WHERE id = ?', livecomment_model.fetch(:livestream_id)).first
-        livestream = fill_livestream_response(tx, livestream_model)
+        livestream = fill_livestream_response(tx, livestream_model, all_tags: all_livestream_tags)
 
         livecomment_model.slice(:id, :comment, :tip, :created_at).merge(
           user: comment_owner,
@@ -148,12 +148,12 @@ module Isupipe
         )
       end
 
-      def fill_livecomment_report_response(tx, report_model, livecomment_model: nil, livestream_model: nil)
+      def fill_livecomment_report_response(tx, report_model, livecomment_model: nil, livestream_model: nil, all_livestream_tags: nil)
         reporter_model = tx.xquery('SELECT * FROM users WHERE id = ?', report_model.fetch(:user_id)).first
         reporter = fill_user_response(tx, reporter_model)
 
         livecomment_model = livecomment_model || tx.xquery('SELECT * FROM livecomments WHERE id = ?', report_model.fetch(:livecomment_id)).first
-        livecomment = fill_livecomment_response(tx, livecomment_model, livestream_model:)
+        livecomment = fill_livecomment_response(tx, livecomment_model, livestream_model:, all_livestream_tags: )
 
         report_model.slice(:id, :created_at).merge(
           reporter:,
@@ -486,9 +486,10 @@ module Isupipe
           .map { [_1.fetch(:id), _1] }
           .to_h
         )
+        all_livestream_tags = livestream_tags_preload(tx, [livestream_model])
         rows.map do |report_model|
-          livecomment_model  =livecomment_models[report_model.fetch(:livecomment_id)]
-          fill_livecomment_report_response(tx, report_model, livestream_model:, livecomment_model:)
+          livecomment_model  = livecomment_models[report_model.fetch(:livecomment_id)]
+          fill_livecomment_report_response(tx, report_model, livestream_model:, livecomment_model:, all_livestream_tags:)
         end
       end
 
