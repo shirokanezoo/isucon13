@@ -1,3 +1,4 @@
 /public/
 /rust/target/
+/ruby/.bundle/
 /go/isupipe
