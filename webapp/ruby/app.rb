@@ -135,7 +135,7 @@ module Isupipe
         end
       end
 
-      def fill_livecomment_response(tx, livecomment_model, livestream_model: nil, all_livestream_tags:)
+      def fill_livecomment_response(tx, livecomment_model, livestream_model: nil, all_livestream_tags: nil)
         comment_owner_model = tx.xquery('SELECT * FROM users WHERE id = ?', livecomment_model.fetch(:user_id)).first
         comment_owner = fill_user_response(tx, comment_owner_model)
 
