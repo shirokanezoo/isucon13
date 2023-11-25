@@ -285,9 +285,9 @@ module Isupipe
         term_end_at = Time.utc(2024, 11, 25, 1)
         reserve_start_at = Time.at(req.start_at, in: 'UTC')
         reserve_end_at = Time.at(req.end_at, in: 'UTC')
-        if reserve_start_at >= term_end_at || reserve_end_at <= term_start_at
-          raise HttpError.new(400, 'bad reservation time range')
-        end
+        #if reserve_start_at >= term_end_at || reserve_end_at <= term_start_at
+        #  raise HttpError.new(400, 'bad reservation time range')
+        #end
 
         # 予約枠をみて、予約が可能か調べる
         # NOTE: 並列な予約のoverbooking防止にFOR UPDATEが必要
