@@ -490,7 +490,7 @@ module Isupipe
 
     # get polling livecomment timeline
     get '/api/livestream/:livestream_id/livecomment' do
-      # verify_user_session!
+      verify_user_session!
       livestream_id = cast_as_integer(params[:livestream_id])
 
       livestream_model = db_conn.xquery('SELECT * FROM livestreams WHERE id = ?', livestream_id).first
