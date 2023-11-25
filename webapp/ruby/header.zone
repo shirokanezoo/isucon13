@@ -1,10 +1,10 @@
 $TTL 3600
-@   SOA  ns1 hostmaster.u.isucon.dev. (
+@   0 SOA  ns1 hostmaster.u.isucon.dev. (
     0      ; serial
     10800  ; refresh
     3600   ; retry
     604800 ; xxpire
-    3600   ; ncache
+    0 ; ncache
 )
 
 @        IN NS ns1.u.isucon.dev.
