@@ -192,10 +192,12 @@ module Isupipe
       FileUtils.rm_rf(ICON_BASE_DIR)
       FileUtils.mkdir_p(ICON_BASE_DIR)
 
+      # ../default/icons 参照
+      # db.xquery('SELECT name FROM users').each do |user|
+      #   FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, user.fetch(:name)))
+      # end
+
       # 初期状態は全員 FALLBACK_IMAGE がアイコン
-      db.xquery('SELECT name FROM users').each do |user|
-        FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, user.fetch(:name)))
-      end
       db.xquery('UPDATE users SET icon_hash = ?', Digest::SHA256.hexdigest(File.binread(FALLBACK_IMAGE)))
 
       json(
