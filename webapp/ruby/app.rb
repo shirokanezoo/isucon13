@@ -184,7 +184,7 @@ module Isupipe
       end
 
       def fill_reaction_response(tx, reaction_model, livestream_model: nil, all_tags: nil, all_users: nil)
-        user_model = (all_users ? all_users[report_model.fetch(:user_id)] : nil ) || tx.xquery('SELECT * FROM users WHERE id = ?', reaction_model.fetch(:user_id)).first
+        user_model = (all_users ? all_users[reaction_model.fetch(:user_id)] : nil ) || tx.xquery('SELECT * FROM users WHERE id = ?', reaction_model.fetch(:user_id)).first
         user = fill_user_response(tx, user_model)
 
         livestream_model = livestream_model || tx.xquery('SELECT * FROM livestreams WHERE id = ?', reaction_model.fetch(:livestream_id)).first
