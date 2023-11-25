@@ -311,9 +311,9 @@ module Isupipe
           raise HttpError.new(400, 'bad reservation time range')
         end
 
-        if (reserve_end_at - reserve_start_at) <= 7200
-          raise HttpError.new(400, "許可されない長さの配信です")
-        end
+        # if (reserve_end_at - reserve_start_at) <= 7200
+        #   raise HttpError.new(400, "許可されない長さの配信です")
+        # end
 
         # 予約枠をみて、予約が可能か調べる
         # NOTE: 並列な予約のoverbooking防止にFOR UPDATEが必要
