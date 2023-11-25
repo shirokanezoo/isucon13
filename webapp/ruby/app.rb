@@ -520,8 +520,8 @@ module Isupipe
         ])
         rows.map do |report_model|
           livecomment_model  = livecomment_models[report_model.fetch(:livecomment_id)]
-          fill_livecomment_report_response(tx, report_model, livestream_model:, livecomment_model:, all_livestream_tags:, all_users:)
-        end
+          !livecomment_model.nil? ?  fill_livecomment_report_response(tx, report_model, livestream_model:, livecomment_model:, all_livestream_tags:, all_users:) : nil
+        end.reject(&:nil?)
       end
 
       json(reports)
