@@ -203,6 +203,7 @@ module Isupipe
       # zone file
       FileUtils.mkdir_p(File.dirname(ZONE_FILE))
       File.write ZONE_FILE, render_zone_file()
+        spawn('nsd-control', 'reload', 'u.isucon.dev')
 
       # ../default/icons 参照
       # db.xquery('SELECT name FROM users').each do |user|
