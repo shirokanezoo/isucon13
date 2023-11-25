@@ -128,7 +128,7 @@ module Isupipe
       end
 
       def livestream_tags_preload(tx, livestream_models)
-        all_tags = tx.xquery('select livestreams.livestream_id, livestream_tags.tag_id from livestream_tags where livestream_id in (?)', [livestream_models.map { _1.fetch(:id) }]).to_a.group_by do |row|
+        all_tags = tx.xquery('select livestream_tags.livestream_id, livestream_tags.tag_id from livestream_tags where livestream_id in (?)', [livestream_models.map { _1.fetch(:id) }]).to_a.group_by do |row|
           row.fetch(:livestream_id)
         end.transform_values do |vs|
           vs.map { TAGS_BY_ID[_1.fetch(:tag_id)] }
