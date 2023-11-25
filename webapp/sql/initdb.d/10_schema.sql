@@ -46,6 +46,8 @@ CREATE TABLE `reservation_slots` (
   `end_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
+alter table reservation_slots add index idx1 (start_at, end_at);
+
 -- ライブストリームに付与される、サービスで定義されたタグ
 CREATE TABLE `tags` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -79,6 +81,8 @@ CREATE TABLE `livecomments` (
   `tip` BIGINT NOT NULL DEFAULT 0,
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+alter table livecomments add index idx1 (livestream_id);
 
 -- ユーザからのライブコメントのスパム報告 / WITH INSERT
 CREATE TABLE `livecomment_reports` (
