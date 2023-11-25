@@ -749,7 +749,7 @@ module Isupipe
       verify_user_session!
 
       livestream_id = cast_as_integer(params[:livestream_id])
-      ls_tags = livestream_tags_preload(tx, [{id: livestream_id}])
+      ls_tags = livestream_tags_preload(db_conn, [{id: livestream_id}])
 
       livestream_model = db_conn.xquery('select * from livestreams where id = ?',livestream_id).first 
 
