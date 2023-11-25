@@ -36,7 +36,6 @@ end
 
 module Isupipe
   class App < Sinatra::Base
-    enable :logging
     set :show_exceptions, :after_handler
     set :sessions, domain: 'u.isucon.dev', path: '/', expire_after: 1000*60
     set :session_secret, ENV.fetch('ISUCON13_SESSION_SECRETKEY', 'isucon13_session_cookiestore_defaultsecret').unpack('H*')[0]
