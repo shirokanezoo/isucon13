@@ -12,6 +12,9 @@ require 'sinatra/json'
 
 require_relative 'tags'
 
+WEBAPP_DIR = File.expand_path('..', __dir__)
+PUBLIC_DIR = File.expand_path('../public', __dir__)
+
 module Isupipe
   class App < Sinatra::Base
     enable :logging
@@ -191,6 +194,9 @@ module Isupipe
         logger.warn("init.sh failed with out=#{out}")
         halt 500
       end
+
+      # アイコン削除
+      FileUtils.rm_rf(File.join(PUBLIC_DIR, 'api/user'))
 
       json(
         language: 'ruby',
@@ -715,6 +721,8 @@ module Isupipe
     BCRYPT_DEFAULT_COST = 4
     FALLBACK_IMAGE = '../img/NoImage.jpg'
 
+    # これもう nginx でなんとかしてください
+    # 同等 path っぽいとこに置いてあります
     get '/api/user/:username/icon' do
       username = params[:username]
 
@@ -748,14 +756,22 @@ module Isupipe
         raise HttpError.new(401)
       end
 
-      req = decode_request_body(PostIconRequest)
-      image = Base64.decode64(req.image)
+      user = tx.xquery('SELECT * FROM users WHERE id = ?', user_id).first
+      icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name), 'icon')
+      icon_dir = File.dirname(icon_path)
 
-      icon_id = db_transaction do |tx|
-        tx.xquery('DELETE FROM icons WHERE user_id = ?', user_id)
-        tx.xquery('INSERT INTO icons (user_id, image) VALUES (?, ?)', user_id, image)
-        tx.last_id
-      end
+      FileUtils.mkdir_p(icon_dir)
+      File.write(icon_dir, req.image, mode: 'wb')
+
+      # req = decode_request_body(PostIconRequest)
+      # image = Base64.decode64(req.image)
+
+      # icon_id = db_transaction do |tx|
+      #   tx.xquery('DELETE FROM icons WHERE user_id = ?', user_id)
+      #   tx.xquery('INSERT INTO icons (user_id, image) VALUES (?, ?)', user_id, image)
+      #   tx.last_id
+      # end
+      icon_id = user[:id]
 
       status 201
       json(
