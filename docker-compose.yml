@@ -1,0 +1,22 @@
+version: '3.1'
+name: 'isupipe'
+services:
+  mysql:
+    # only Oracle Linux image has arm64 image
+    image: public.ecr.aws/docker/library/mysql:8.0-oracle
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: himitsu
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: himitsu
+      MYSQL_DATABASE: dummy
+    volumes:
+      - ./db/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - mysql:/var/lib/mysql
+    expose:
+      - "3306"
+    ports:
+      - "127.0.0.1::3306"
+
+volumes:
+  mysql: {}
