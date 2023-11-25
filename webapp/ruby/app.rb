@@ -15,6 +15,7 @@ require_relative 'tags'
 
 WEBAPP_DIR = File.expand_path('..', __dir__)
 PUBLIC_DIR = File.expand_path('../public', __dir__)
+ICON_BASE_DIR = File.join('../files', __dir__)
 
 module Isupipe
   class App < Sinatra::Base
@@ -165,7 +166,7 @@ module Isupipe
       def fill_user_response(tx, user_model)
         theme_model = tx.xquery('SELECT * FROM themes WHERE user_id = ?', user_model.fetch(:id)).first
 
-        icon_path = File.join(PUBLIC_DIR, 'api/user', user_model.fetch(:name))
+        icon_path = File.join(ICON_BASE_DIR, user_model.fetch(:name))
         icon_hash = Digest::SHA256.hexdigest(File.binread(icon_path))
 
         {
@@ -191,8 +192,8 @@ module Isupipe
       end
 
       # アイコン削除
-      FileUtils.rm_rf(File.join(PUBLIC_DIR, 'api/user'))
-      FileUtils.mkdir_p(File.join(PUBLIC_DIR, 'api/user'))
+      FileUtils.rm_rf(ICON_BASE_DIR)
+      FileUtils.mkdir_p(ICON_BASE_DIR)
 
       db.xquery('SELECT name FROM users').each do |user|
         icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name))
@@ -733,7 +734,7 @@ module Isupipe
       #   raise HttpError.new(404, 'not found user that has the given username')
       # end
 
-      icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name))
+      icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
       icon_path = FALLBACK_IMAGE unless File.exist?(icon_path)
 
       send_file icon_path
@@ -754,7 +755,7 @@ module Isupipe
       end
 
       user = tx.xquery('SELECT * FROM users WHERE id = ?', user_id).first
-      icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name))
+      icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
 
       File.binwrite(icon_dir, req.image)
 
@@ -827,7 +828,7 @@ module Isupipe
         end
 
         # アイコン登録
-        FileUtils.cp(FALLBACK_IMAGE, File.join(PUBLIC_DIR, 'api/user', req.name))
+        FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, req.name))
 
         fill_user_response(tx, {
           id: user_id,
