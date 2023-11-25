@@ -113,8 +113,8 @@ module Isupipe
         nil
       end
 
-      def fill_livestream_response(tx, livestream_model, all_tags: nil)
-        owner_model = tx.xquery('SELECT * FROM users WHERE id = ?', livestream_model.fetch(:user_id)).first
+      def fill_livestream_response(tx, livestream_model, all_tags: nil, all_users: nil)
+        owner_model = (all_users ? all_users[livestream_model.fetch(:user_id)] : nil ) || tx.xquery('SELECT * FROM users WHERE id = ?', livestream_model.fetch(:user_id)).first
         owner = fill_user_response(tx, owner_model)
 
         tags = (all_tags ? all_tags[livestream_model.fetch(:id)] : nil) || tx.xquery('SELECT tag_id FROM livestream_tags WHERE livestream_id = ?', livestream_model.fetch(:id)).map do |livestream_tag_model|
@@ -135,12 +135,19 @@ module Isupipe
         end
       end
 
-      def fill_livecomment_response(tx, livecomment_model, livestream_model: nil, all_livestream_tags: nil)
-        comment_owner_model = tx.xquery('SELECT * FROM users WHERE id = ?', livecomment_model.fetch(:user_id)).first
+      def users_preload(tx, user_ids)
+        return {} if user_ids.empty?
+        tx.xquery('select * from users where id in (?)', user_ids).map do |row|
+          [row.fetch(:id), row]
+        end.to_h
+      end
+
+      def fill_livecomment_response(tx, livecomment_model, livestream_model: nil, all_livestream_tags: nil, all_users: nil)
+        comment_owner_model = (all_users ? all_users[livecomment_model.fetch(:user_id)] : nil ) || tx.xquery('SELECT * FROM users WHERE id = ?', livecomment_model.fetch(:user_id)).first
         comment_owner = fill_user_response(tx, comment_owner_model)
 
         livestream_model = livestream_model || tx.xquery('SELECT * FROM livestreams WHERE id = ?', livecomment_model.fetch(:livestream_id)).first
-        livestream = fill_livestream_response(tx, livestream_model, all_tags: all_livestream_tags)
+        livestream = fill_livestream_response(tx, livestream_model, all_tags: all_livestream_tags, all_users: )
 
         livecomment_model.slice(:id, :comment, :tip, :created_at).merge(
           user: comment_owner,
@@ -148,12 +155,12 @@ module Isupipe
         )
       end
 
-      def fill_livecomment_report_response(tx, report_model, livecomment_model: nil, livestream_model: nil, all_livestream_tags: nil)
-        reporter_model = tx.xquery('SELECT * FROM users WHERE id = ?', report_model.fetch(:user_id)).first
+      def fill_livecomment_report_response(tx, report_model, livecomment_model: nil, livestream_model: nil, all_livestream_tags: nil, all_users: nil)
+        reporter_model = (all_users ? all_users[report_model.fetch(:user_id)] : nil ) || tx.xquery('SELECT * FROM users WHERE id = ?', report_model.fetch(:user_id)).first
         reporter = fill_user_response(tx, reporter_model)
 
         livecomment_model = livecomment_model || tx.xquery('SELECT * FROM livecomments WHERE id = ?', report_model.fetch(:livecomment_id)).first
-        livecomment = fill_livecomment_response(tx, livecomment_model, livestream_model:, all_livestream_tags: )
+        livecomment = fill_livecomment_response(tx, livecomment_model, livestream_model:, all_livestream_tags:, all_users: )
 
         report_model.slice(:id, :created_at).merge(
           reporter:,
@@ -349,8 +356,9 @@ module Isupipe
           end
 
         ls_tags = livestream_tags_preload(tx, livestream_models)
+        ls_users = users_preload(tx, livestream_models.map { _1.fetch(:user_id) })
         livestream_models.map do |livestream_model|
-          fill_livestream_response(tx, livestream_model, all_tags: ls_tags)
+          fill_livestream_response(tx, livestream_model, all_tags: ls_tags, all_users: ls_users)
         end
       end
 
@@ -371,8 +379,9 @@ module Isupipe
       livestreams = db_transaction do |tx|
         ls_rows = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user_id)
         ls_tags = livestream_tags_preload(tx, ls_rows)
+        ls_users = users_preload(tx, ls_rows.map { _1.fetch(:user_id) })
         ls_rows.map do |livestream_model|
-          fill_livestream_response(tx, livestream_model, all_tags: ls_tags)
+          fill_livestream_response(tx, livestream_model, all_tags: ls_tags, all_users: ls_users)
         end
       end
 
@@ -391,8 +400,9 @@ module Isupipe
 
         ls_rows = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user.fetch(:id))
         ls_tags = livestream_tags_preload(tx, ls_rows)
+        ls_users = users_preload(tx, ls_rows.map { _1.fetch(:user_id) })
         ls_rows.map do |livestream_model|
-          fill_livestream_response(tx, livestream_model, all_tags: ls_tags)
+          fill_livestream_response(tx, livestream_model, all_tags: ls_tags, all_users: ls_users)
         end
       end
 
@@ -488,9 +498,14 @@ module Isupipe
           .to_h
         )
         all_livestream_tags = livestream_tags_preload(tx, [livestream_model])
+        all_users = users_preload(tx, [
+          livestream_model.fetch(:user_id),
+          *rows.map { _1.fetch(:user_id) },
+          *livecomment_models.each_value.map { _1.fetch(:user_id) },
+        ])
         rows.map do |report_model|
           livecomment_model  = livecomment_models[report_model.fetch(:livecomment_id)]
-          fill_livecomment_report_response(tx, report_model, livestream_model:, livecomment_model:, all_livestream_tags:)
+          fill_livecomment_report_response(tx, report_model, livestream_model:, livecomment_model:, all_livestream_tags:, all_users:)
         end
       end
 
@@ -525,14 +540,16 @@ module Isupipe
           query = "#{query} LIMIT #{limit}"
         end
 
-        tx.xquery(query, livestream_id).map do |livecomment_model|
+        rows = tx.xquery(query, livestream_id).to_a
+        ls_users = users_preload(tx, rows.map { _1.fetch(:user_id) })
+        rows.map do |livecomment_model|
           # fill_livecomment_response
           {
             id: livecomment_model.fetch(:l_id),
             comment: livecomment_model.fetch(:l_comment),
             tip: livecomment_model.fetch(:l_tip),
             created_at: livecomment_model.fetch(:l_created_at),
-            user: fill_user_response(tx, livecomment_model),
+            user: ls_users[livecomment_model.fetch(:user_id)] || fill_user_response(tx, livecomment_model),
             livestream:,
           }
         end
