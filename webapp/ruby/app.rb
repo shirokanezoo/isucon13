@@ -311,6 +311,10 @@ module Isupipe
           raise HttpError.new(400, 'bad reservation time range')
         end
 
+        if (reserve_end_at - reserve_start_at) <= 7200
+          raise HttpError.new(400, "許可されない長さの配信です")
+        end
+
         # 予約枠をみて、予約が可能か調べる
         # NOTE: 並列な予約のoverbooking防止にFOR UPDATEが必要
         tx.xquery('SELECT * FROM reservation_slots WHERE start_at >= ? AND end_at <= ? FOR UPDATE', req.start_at, req.end_at).each do |slot|
