@@ -760,7 +760,7 @@ module Isupipe
     end
 
     get '/api/livestream/:livestream_id/reaction' do
-      # verify_user_session!
+      verify_user_session!
 
       livestream_id = cast_as_integer(params[:livestream_id])
       ls_tags = livestream_tags_preload(db_conn, [{id: livestream_id}])
