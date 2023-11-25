@@ -3,26 +3,17 @@ require 'shellwords'
 
 TMUX = 'tmux'
 hosts = {
-  isu01: 'isu-naruta-001.dev.aws.ckpd.co',
+  isu1: 'isu1',
+  isu2: 'isu2',
+  isu3: 'isu3',
 }
 WINDOWS = {
   default: [
     {
       panes: [
-        { host: hosts[:isu01], command: 'echo 0' },
-        { host: hosts[:isu01], command: 'echo 1' },
-        { host: hosts[:isu01], command: 'echo 2' },
-        { host: hosts[:isu01], command: 'echo 3' },
-        { host: hosts[:isu01], command: 'echo 4' },
-        { host: hosts[:isu01], command: 'echo 5' },
-        { host: hosts[:isu01], command: 'echo 6' },
-        { host: hosts[:isu01], command: 'echo 7' },
-      ],
-    },
-    {
-      panes: [
-        { host: hosts[:isu01], command: 'echo 10' },
-        { host: hosts[:isu01], command: 'echo 11' },
+        { host: hosts[:isu1] },
+        { host: hosts[:isu2] },
+        { host: hosts[:isu3] },
       ],
     },
   ],

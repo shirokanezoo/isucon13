@@ -1,5 +1,5 @@
 select
-  -- SCHEMA_NAME,
+  SCHEMA_NAME,
   -- DIGEST,
   DIGEST_TEXT,
   COUNT_STAR,
@@ -41,7 +41,8 @@ select
 from
   performance_schema.events_statements_summary_by_digest
 where
-  `SCHEMA_NAME` = 'isuports'
+  `SCHEMA_NAME` != 'performance_schema'
+  AND `SCHEMA_NAME` IS NOT NULL
 order by
   SUM_TIMER_WAIT desc
 limit
