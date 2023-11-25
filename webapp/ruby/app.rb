@@ -9,6 +9,7 @@ require 'open3'
 require 'securerandom'
 require 'sinatra/base'
 require 'sinatra/json'
+require 'fileutils'
 
 require_relative 'tags'
 
@@ -164,14 +165,8 @@ module Isupipe
       def fill_user_response(tx, user_model)
         theme_model = tx.xquery('SELECT * FROM themes WHERE user_id = ?', user_model.fetch(:id)).first
 
-        icon_model = tx.xquery('SELECT image FROM icons WHERE user_id = ?', user_model.fetch(:id)).first
-        image =
-          if icon_model
-            icon_model.fetch(:image)
-          else
-            File.binread(FALLBACK_IMAGE)
-          end
-        icon_hash = Digest::SHA256.hexdigest(image)
+        icon_path = File.join(PUBLIC_DIR, 'api/user', user_model.fetch(:name))
+        icon_hash = Digest::SHA256.hexdigest(File.binread(icon_path))
 
         {
           id: user_model.fetch(:id),
@@ -197,6 +192,12 @@ module Isupipe
 
       # アイコン削除
       FileUtils.rm_rf(File.join(PUBLIC_DIR, 'api/user'))
+      FileUtils.mkdir_p(File.join(PUBLIC_DIR, 'api/user'))
+
+      db.xquery('SELECT name FROM users').each do |user|
+        icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name))
+        FileUtils.cp(FALLBACK_IMAGE, icon_path)
+      end
 
       json(
         language: 'ruby',
@@ -726,20 +727,16 @@ module Isupipe
     get '/api/user/:username/icon' do
       username = params[:username]
 
-      image = db_transaction do |tx|
-        user = tx.xquery('SELECT * FROM users WHERE name = ?', username).first
-        unless user
-          raise HttpError.new(404, 'not found user that has the given username')
-        end
-        tx.xquery('SELECT image FROM icons WHERE user_id = ?', user.fetch(:id)).first
-      end
+      # これはうまいことやる
+      # user = tx.xquery('SELECT * FROM users WHERE name = ? LIMIT 1', username).first
+      # unless user
+      #   raise HttpError.new(404, 'not found user that has the given username')
+      # end
 
-      content_type 'image/jpeg'
-      if image
-        image[:image]
-      else
-        send_file FALLBACK_IMAGE
-      end
+      icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name))
+      icon_path = FALLBACK_IMAGE unless File.exist?(icon_path)
+
+      send_file icon_path
     end
 
     PostIconRequest = Data.define(:image)
@@ -757,11 +754,9 @@ module Isupipe
       end
 
       user = tx.xquery('SELECT * FROM users WHERE id = ?', user_id).first
-      icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name), 'icon')
-      icon_dir = File.dirname(icon_path)
+      icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name))
 
-      FileUtils.mkdir_p(icon_dir)
-      File.write(icon_dir, req.image, mode: 'wb')
+      File.binwrite(icon_dir, req.image)
 
       # req = decode_request_body(PostIconRequest)
       # image = Base64.decode64(req.image)
@@ -830,6 +825,9 @@ module Isupipe
         unless status.success?
           raise HttpError.new(500, "pdnsutil failed with out=#{out}")
         end
+
+        # アイコン登録
+        FileUtils.cp(FALLBACK_IMAGE, File.join(PUBLIC_DIR, 'api/user', req.name))
 
         fill_user_response(tx, {
           id: user_id,
