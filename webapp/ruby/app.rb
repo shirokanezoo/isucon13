@@ -761,7 +761,9 @@ module Isupipe
       user = db_conn.xquery('SELECT * FROM users WHERE id = ?', user_id).first
       icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
 
-      File.binwrite(icon_path, req.image)
+      req = decode_request_body(PostIconRequest)
+      image = Base64.decode64(req.image)
+      File.binwrite(icon_path, image)
 
       db_conn.xquery('UPDATE users SET icon_hash = ? WHERE id = ?', Digest::SHA256.hexdigest(req.image), user_id)
 
