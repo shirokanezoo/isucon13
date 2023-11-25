@@ -758,12 +758,12 @@ module Isupipe
         raise HttpError.new(401)
       end
 
-      user = tx.xquery('SELECT * FROM users WHERE id = ?', user_id).first
+      user = db_conn.xquery('SELECT * FROM users WHERE id = ?', user_id).first
       icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
 
       File.binwrite(icon_dir, req.image)
 
-      tx.xquery('UPDATE users SET icon_hash = ? WHERE id = ?', Digest::SHA256.hexdigest(req.image), user_id)
+      db_conn.xquery('UPDATE users SET icon_hash = ? WHERE id = ?', Digest::SHA256.hexdigest(req.image), user_id)
 
       # req = decode_request_body(PostIconRequest)
       # image = Base64.decode64(req.image)
