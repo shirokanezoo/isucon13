@@ -17,6 +17,9 @@ WEBAPP_DIR = File.expand_path('..', __dir__)
 PUBLIC_DIR = File.expand_path('../public', __dir__)
 ICON_BASE_DIR = File.expand_path('../files', __dir__)
 
+ZONE_HEADER = File.read(File.join(__dir__, 'header.zone')).gsub(/<ISUCON_SUBDOMAIN_ADDRESS>/, ENV.fetch('ISUCON13_POWERDNS_SUBDOMAIN_ADDRESS'))
+ZONE_FILE = ENV['ISUCON13_ZONE_FILE'] || File.join(File.expand_path('../zones', __dir__), 'u.isucon.dev.zone')
+
 module Isupipe
   class App < Sinatra::Base
     enable :logging
@@ -176,6 +179,13 @@ module Isupipe
           icon_hash: user_model.fetch(:icon_hash),
         }
       end
+
+      def render_zone_file
+        lines = db.xquery('SELECT name FROM users').map do |user|
+          "#{user.fetch(:name)} IN A #{POWERDNS_SUBDOMAIN_ADDRESS}"
+        end
+        "#{POWERDNS_SUBDOMAIN_ADDRESS}\n#{lines.join(?\n)}\n"
+      end
     end
 
     # 初期化
@@ -189,6 +199,10 @@ module Isupipe
       # アイコン削除
       FileUtils.rm_rf(ICON_BASE_DIR)
       FileUtils.mkdir_p(ICON_BASE_DIR)
+
+      # zone file
+      FileUtils.mkdir_p(File.dirname(ZONE_FILE))
+      File.write ZONE_FILE, render_zone_file()
 
       # ../default/icons 参照
       # db.xquery('SELECT name FROM users').each do |user|
@@ -842,10 +856,16 @@ module Isupipe
         tx.xquery('INSERT INTO users (name, display_name, description, password, dark_mode) VALUES(?, ?, ?, ?, ?)', req.name, req.display_name, req.description, hashed_password, req.theme.fetch(:dark_mode))
         user_id = tx.last_id
 
-        out, status = Open3.capture2e('pdnsutil', 'add-record', 'u.isucon.dev', req.name, 'A', '0', POWERDNS_SUBDOMAIN_ADDRESS)
-        unless status.success?
-          raise HttpError.new(500, "pdnsutil failed with out=#{out}")
+        #out, status = Open3.capture2e('pdnsutil', 'add-record', 'u.isucon.dev', req.name, 'A', '0', POWERDNS_SUBDOMAIN_ADDRESS)
+        #unless status.success?
+        #  raise HttpError.new(500, "pdnsutil failed with out=#{out}")
+        #end
+        File.open(ZONE_FILE, 'a') do |io|
+          io.flock(File::LOCK_EX)
+          io.seek(0, IO::SEEK_END)
+          io.puts "#{req.name} IN A #{POWERDNS_SUBDOMAIN_ADDRESS}"
         end
+        spawn('nsd-control', 'reload', 'u.isucon.dev')
 
         # アイコン登録
         FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, req.name))
