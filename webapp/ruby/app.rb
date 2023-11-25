@@ -937,46 +937,26 @@ module Isupipe
         end
 
         # ランク算出
-        users = tx.xquery('SELECT * FROM users').to_a
-
-        ranking = users.map do |user|
-          reactions = tx.xquery(<<~SQL, user.fetch(:id), as: :array).first[0]
-            SELECT COUNT(*) FROM users u
-            INNER JOIN livestreams l ON l.user_id = u.id
-            INNER JOIN reactions r ON r.livestream_id = l.id
-            WHERE u.id = ?
-          SQL
-
-          tips = tx.xquery(<<~SQL, user.fetch(:id), as: :array).first[0]
-            SELECT IFNULL(SUM(l2.tip), 0) FROM users u
-            INNER JOIN livestreams l ON l.user_id = u.id
-            INNER JOIN livecomments l2 ON l2.livestream_id = l.id
-            WHERE u.id = ?
-          SQL
-
-          score = reactions + tips
-          UserRankingEntry.new(username: user.fetch(:name), score:)
-        end
-
-        ranking.sort_by! { |entry| [entry.score, entry.username] }
-        ridx = ranking.rindex { |entry| entry.username == username }
-        rank = ranking.size - ridx
+        users = tx.xquery('SELECT * FROM users ORDER BY score DESC, name ASC').to_a
+        ridx = users.rindex { |entry| entry.fetch(:name) == username }
+        rank = users.size - ridx
 
         # リアクション数
-        total_reactions = tx.xquery(<<~SQL, username, as: :array).first[0]
-          SELECT COUNT(*) FROM users u
-          INNER JOIN livestreams l ON l.user_id = u.id
-          INNER JOIN reactions r ON r.livestream_id = l.id
-          WHERE u.name = ?
-        SQL
+        total_reactions = user.fetch(:total_reactions)
+        # total_reactions = tx.xquery(<<~SQL, username, as: :array).first[0]
+        #   SELECT COUNT(*) FROM users u
+        #   INNER JOIN livestreams l ON l.user_id = u.id
+        #   INNER JOIN reactions r ON r.livestream_id = l.id
+        #   WHERE u.name = ?
+        # SQL
+
+        total_tip = user.fetch(:total_tips)
 
         # ライブコメント数、チップ合計
         total_livecomments = 0
-        total_tip = 0
         livestreams = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user.fetch(:id))
         livestreams.each do |livestream|
           tx.xquery('SELECT * FROM livecomments WHERE livestream_id = ?', livestream.fetch(:id)).each do |livecomment|
-            total_tip += livecomment.fetch(:tip)
             total_livecomments += 1
           end
         end
