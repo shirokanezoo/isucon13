@@ -161,12 +161,12 @@ module Isupipe
         )
       end
 
-      def fill_reaction_response(tx, reaction_model)
+      def fill_reaction_response(tx, reaction_model, all_tags: nil)
         user_model = tx.xquery('SELECT * FROM users WHERE id = ?', reaction_model.fetch(:user_id)).first
         user = fill_user_response(tx, user_model)
 
         livestream_model = tx.xquery('SELECT * FROM livestreams WHERE id = ?', reaction_model.fetch(:livestream_id)).first
-        livestream = fill_livestream_response(tx, livestream_model)
+        livestream = fill_livestream_response(tx, livestream_model, all_tags: all_tags)
 
         reaction_model.slice(:id, :emoji_name, :created_at).merge(
           user:,
@@ -732,6 +732,7 @@ module Isupipe
       verify_user_session!
 
       livestream_id = cast_as_integer(params[:livestream_id])
+      ls_tags = livestream_tags_preload(tx, [{id: livestream_id}])
 
       reactions = db_transaction do |tx|
         query = 'SELECT * FROM reactions WHERE livestream_id = ? ORDER BY created_at DESC'
@@ -742,7 +743,7 @@ module Isupipe
         end
 
         tx.xquery(query, livestream_id).map do |reaction_model|
-          fill_reaction_response(tx, reaction_model)
+          fill_reaction_response(tx, reaction_model, all_tags: ls_tags)
         end
       end
 
