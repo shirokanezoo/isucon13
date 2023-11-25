@@ -958,7 +958,7 @@ module Isupipe
         end
 
         # ランク算出
-        users = tx.xquery('SELECT * FROM users ORDER BY score DESC, name ASC').to_a
+        users = tx.xquery('SELECT * FROM users ORDER BY score ASC, name ASC').to_a
         ridx = users.rindex { |entry| entry.fetch(:name) == username }
         rank = users.size - ridx
 
