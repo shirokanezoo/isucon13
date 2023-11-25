@@ -391,13 +391,11 @@ module Isupipe
         raise HttpError.new(401)
       end
 
-      livestreams = db_transaction do |tx|
-        ls_rows = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user_id).to_a
-        ls_tags = livestream_tags_preload(tx, ls_rows)
-        ls_users = users_preload(tx, ls_rows.map { _1.fetch(:user_id) })
-        ls_rows.map do |livestream_model|
-          fill_livestream_response(tx, livestream_model, all_tags: ls_tags, all_users: ls_users)
-        end
+      ls_rows = db_conn.xquery('SELECT * FROM livestreams WHERE user_id = ?', user_id).to_a
+      ls_tags = livestream_tags_preload(tx, ls_rows)
+      ls_users = users_preload(tx, ls_rows.map { _1.fetch(:user_id) })
+      livestreams = ls_rows.map do |livestream_model|
+        fill_livestream_response(tx, livestream_model, all_tags: ls_tags, all_users: ls_users)
       end
 
       json(livestreams)
@@ -407,18 +405,17 @@ module Isupipe
       verify_user_session!
       username = params[:username]
 
-      livestreams = db_transaction do |tx|
-        user = tx.xquery('SELECT * FROM users WHERE name = ?', username).first
-        unless user
-          raise HttpError.new(404, 'user not found')
-        end
+      user = db_conn.xquery('SELECT * FROM users WHERE name = ?', username).first
+      unless user
+        raise HttpError.new(404, 'user not found')
+      end
 
-        ls_rows = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user.fetch(:id)).to_a
-        ls_tags = livestream_tags_preload(tx, ls_rows)
-        ls_users = users_preload(tx, ls_rows.map { _1.fetch(:user_id) })
-        ls_rows.map do |livestream_model|
-          fill_livestream_response(tx, livestream_model, all_tags: ls_tags, all_users: ls_users)
-        end
+      ls_rows = db_conn.xquery('SELECT * FROM livestreams WHERE user_id = ?', user.fetch(:id)).to_a
+      ls_tags = livestream_tags_preload(db_conn, ls_rows)
+      ls_users = users_preload(db_conn, ls_rows.map { _1.fetch(:user_id) })
+
+      livestreams = ls_rows.map do |livestream_model|
+        fill_livestream_response(db_conn, livestream_model, all_tags: ls_tags, all_users: ls_users)
       end
 
       json(livestreams)
@@ -473,14 +470,12 @@ module Isupipe
 
       livestream_id = cast_as_integer(params[:livestream_id])
 
-      livestream = db_transaction do |tx|
-        livestream_model = tx.xquery('SELECT * FROM livestreams WHERE id = ?', livestream_id).first
-        unless livestream_model
-          raise HttpError.new(404)
-        end
-
-        fill_livestream_response(tx, livestream_model)
+      livestream_model = db_conn.xquery('SELECT * FROM livestreams WHERE id = ?', livestream_id).first
+      unless livestream_model
+        raise HttpError.new(404)
       end
+
+      livestream = fill_livestream_response(db_conn, livestream_model)
 
       json(livestream)
     end
@@ -535,38 +530,36 @@ module Isupipe
       livestream_model = db_conn.xquery('SELECT * FROM livestreams WHERE id = ?', livestream_id).first
       livestream = fill_livestream_response(db_conn, livestream_model)
 
-      livecomments = db_transaction do |tx|
-        query = <<~SQL
-        SELECT
-          livecomments.id AS l_id,
-          livecomments.livestream_id AS l_livestream_id,
-          livecomments.comment AS l_comment,
-          livecomments.tip AS l_tip,
-          livecomments.created_at AS l_created_at,
-          users.*
-        FROM livecomments
-        INNER JOIN users ON livecomments.user_id = users.id
-        WHERE livestream_id = ?
-        SQL
+      query = <<~SQL
+      SELECT
+        livecomments.id AS l_id,
+        livecomments.livestream_id AS l_livestream_id,
+        livecomments.comment AS l_comment,
+        livecomments.tip AS l_tip,
+        livecomments.created_at AS l_created_at,
+        users.*
+      FROM livecomments
+      INNER JOIN users ON livecomments.user_id = users.id
+      WHERE livestream_id = ?
+      SQL
 
-        limit_str = params[:limit] || ''
-        if limit_str != ''
-          limit = cast_as_integer(limit_str)
-          query = "#{query} LIMIT #{limit}"
-        end
+      limit_str = params[:limit] || ''
+      if limit_str != ''
+        limit = cast_as_integer(limit_str)
+        query = "#{query} LIMIT #{limit}"
+      end
 
-        rows = tx.xquery(query, livestream_id).to_a
-        rows.map do |livecomment_model|
-          # fill_livecomment_response
-          {
-            id: livecomment_model.fetch(:l_id),
-            comment: livecomment_model.fetch(:l_comment),
-            tip: livecomment_model.fetch(:l_tip),
-            created_at: livecomment_model.fetch(:l_created_at),
-            user: fill_user_response(tx, livecomment_model),
-            livestream:,
-          }
-        end
+      rows = db_conn.xquery(query, livestream_id).to_a
+      livecomments = rows.map do |livecomment_model|
+        # fill_livecomment_response
+        {
+          id: livecomment_model.fetch(:l_id),
+          comment: livecomment_model.fetch(:l_comment),
+          tip: livecomment_model.fetch(:l_tip),
+          created_at: livecomment_model.fetch(:l_created_at),
+          user: fill_user_response(db_conn, livecomment_model),
+          livestream:,
+        }
       end
 
       json(livecomments)
@@ -585,9 +578,7 @@ module Isupipe
 
       livestream_id = cast_as_integer(params[:livestream_id])
 
-      ng_words = db_transaction do |tx|
-        tx.xquery('SELECT * FROM ng_words WHERE user_id = ? AND livestream_id = ? ORDER BY created_at DESC', user_id, livestream_id).to_a
-      end
+      ng_words = db_conn.xquery('SELECT * FROM ng_words WHERE user_id = ? AND livestream_id = ? ORDER BY created_at DESC', user_id, livestream_id).to_a
 
       json(ng_words)
     end
@@ -767,22 +758,20 @@ module Isupipe
 
       livestream_model = db_conn.xquery('select * from livestreams where id = ?',livestream_id).first
 
-      reactions = db_transaction do |tx|
-        query = 'SELECT * FROM reactions WHERE livestream_id = ? ORDER BY created_at DESC'
-        limit_str = params[:limit] || ''
-        if limit_str != ''
-          limit = cast_as_integer(limit_str)
-          query = "#{query} LIMIT #{limit}"
-        end
+      query = 'SELECT * FROM reactions WHERE livestream_id = ? ORDER BY created_at DESC'
+      limit_str = params[:limit] || ''
+      if limit_str != ''
+        limit = cast_as_integer(limit_str)
+        query = "#{query} LIMIT #{limit}"
+      end
 
-        rows = tx.xquery(query, livestream_id).to_a
-        all_users = users_preload(tx, [
-          livestream_model.fetch(:user_id),
-          *rows.map { _1.fetch(:user_id) },
-        ])
-        rows.map do |reaction_model|
-          fill_reaction_response(tx, reaction_model, livestream_model:, all_tags: ls_tags, all_users:)
-        end
+      rows = db_conn.xquery(query, livestream_id).to_a
+      all_users = users_preload(db_conn, [
+        livestream_model.fetch(:user_id),
+        *rows.map { _1.fetch(:user_id) },
+      ])
+      reactions = rows.map do |reaction_model|
+        fill_reaction_response(db_conn, reaction_model, livestream_model:, all_tags: ls_tags, all_users:)
       end
 
       json(reactions)
@@ -910,13 +899,11 @@ module Isupipe
         raise HttpError.new(401)
       end
 
-      user = db_transaction do |tx|
-        user_model = tx.xquery('SELECT * FROM users WHERE id = ?', user_id).first
-        unless user_model
-          raise HttpError.new(404)
-        end
-        fill_user_response(tx, user_model)
+      user_model = db_conn.xquery('SELECT * FROM users WHERE id = ?', user_id).first
+      unless user_model
+        raise HttpError.new(404)
       end
+      user = fill_user_response(db_conn, user_model)
 
       json(user)
     end
@@ -1012,14 +999,12 @@ module Isupipe
 
       username = params[:username]
 
-      user = db_transaction do |tx|
-        user_model = tx.xquery('SELECT * FROM users WHERE name = ?', username).first
-        unless user_model
-          raise HttpError.new(404)
-        end
-
-        fill_user_response(tx, user_model)
+      user_model = db_conn.xquery('SELECT * FROM users WHERE name = ?', username).first
+      unless user_model
+        raise HttpError.new(404)
       end
+
+      user = fill_user_response(db_conn, user_model)
 
       json(user)
     end
@@ -1139,9 +1124,7 @@ module Isupipe
     end
 
     get '/api/payment' do
-      total_tip = db_transaction do |tx|
-        tx.xquery('SELECT IFNULL(SUM(tip), 0) FROM livecomments', as: :array).first[0]
-      end
+      total_tip = db_conn.xquery('SELECT IFNULL(SUM(tip), 0) FROM livecomments', as: :array).first[0]
 
       json(total_tip:)
     end
