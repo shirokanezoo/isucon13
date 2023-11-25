@@ -1021,7 +1021,7 @@ module Isupipe
         end
 
         # ランク算出
-        ranking = tx.xquery('SELECT id FROM livestreams ORDER BY score ASC, id ASC')
+        ranking = tx.xquery('SELECT id FROM livestreams ORDER BY score ASC, id ASC').to_a
         ridx = ranking.rindex { |entry| entry.fetch(:id) == livestream_id }
         rank = ranking.size - ridx
 
