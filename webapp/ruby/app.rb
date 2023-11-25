@@ -517,6 +517,7 @@ module Isupipe
         end
 
         tx.xquery(query, livestream_id).map do |livecomment_model|
+          # fill_livecomment_response
           {
             id: livecomment_model.fetch(:l_id),
             comment: livecomment_model.fetch(:l_comment),
