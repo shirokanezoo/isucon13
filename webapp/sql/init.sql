@@ -10,6 +10,7 @@ TRUNCATE TABLE livestream_tags;
 TRUNCATE TABLE livecomments;
 TRUNCATE TABLE livestreams;
 TRUNCATE TABLE users;
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 
 ALTER TABLE `themes` auto_increment = 1;
 ALTER TABLE `icons` auto_increment = 1;

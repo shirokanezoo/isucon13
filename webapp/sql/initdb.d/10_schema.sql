@@ -17,6 +17,8 @@ CREATE TABLE `icons` (
   `image` LONGBLOB NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
+alter table icons add index idx1 (user_id);
+
 -- ユーザごとのカスタムテーマ / WITH INSERT
 CREATE TABLE `themes` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -57,6 +59,8 @@ CREATE TABLE `livestream_tags` (
   `livestream_id` BIGINT NOT NULL,
   `tag_id` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+alter table livestream_tags add index idx1 (livestream_id);
 
 -- ライブ配信視聴履歴 / WITH INSERT / WITH DELETE
 CREATE TABLE `livestream_viewers_history` (
