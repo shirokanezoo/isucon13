@@ -551,7 +551,7 @@ module Isupipe
         livecomment_id = tx.last_id
 
         # tips 数を加算
-        tx.xquery('UPDATE users SET total_tips = total_tips + ? WHERE id = ?', req.tip, livestream_model.fetch(:user_id))
+        tx.xquery('UPDATE users SET total_tips = total_tips + ?, score = score + ? WHERE id = ?', req.tip, req.tip, livestream_model.fetch(:user_id))
 
         fill_livecomment_response(tx, {
           id: livecomment_id,
@@ -656,7 +656,7 @@ module Isupipe
           total_tips = livecomments.map {|lc| lc.fetch(:tip) }.inject(:+)
 
           tx.xquery('DELETE FROM livecomments WHERE id IN (?)', livecomments.map {|lc| lc.fetch(:id) })
-          tx.xquery('UPDATE users SET total_tips = total_tips - ? WHERE id = ?', total_tips, livestream_model.fetch(:user_id))
+          tx.xquery('UPDATE users SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, livestream_model.fetch(:user_id))
 
           # # ライブコメント一覧取得
           # tx.xquery('SELECT * FROM livecomments').each do |livecomment|
@@ -724,7 +724,7 @@ module Isupipe
       reaction = db_transaction do |tx|
         # リアクション数をインクリメント
         livestream = tx.xquery('SELECT * FROM livestreams WHERE id = ?', livestream_id).first
-        tx.xquery('UPDATE users SET total_reactions = total_reactions + 1 WHERE id = ?', livestream.fetch(:user_id))
+        tx.xquery('UPDATE users SET total_reactions = total_reactions + 1, score = score + 1 WHERE id = ?', livestream.fetch(:user_id))
 
         created_at = Time.now.to_i
         tx.xquery('INSERT INTO reactions (user_id, livestream_id, emoji_name, created_at) VALUES (?, ?, ?, ?)', user_id, livestream_id, req.emoji_name, created_at)
