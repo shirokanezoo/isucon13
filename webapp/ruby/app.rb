@@ -15,7 +15,7 @@ require_relative 'tags'
 
 WEBAPP_DIR = File.expand_path('..', __dir__)
 PUBLIC_DIR = File.expand_path('../public', __dir__)
-ICON_BASE_DIR = File.join('../files', __dir__)
+ICON_BASE_DIR = File.expand_path('../files', __dir__)
 
 module Isupipe
   class App < Sinatra::Base
