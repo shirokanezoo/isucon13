@@ -198,7 +198,10 @@ module Isupipe
       # end
 
       # 初期状態は全員 FALLBACK_IMAGE がアイコン
-      db.xquery('UPDATE users SET icon_hash = ?', Digest::SHA256.hexdigest(File.binread(FALLBACK_IMAGE)))
+      # db.xquery('SELECT name FROM users').each do |user|
+      #   FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, user.fetch(:name)))
+      # end
+      # db_conn.xquery('UPDATE users SET icon_hash = ?', Digest::SHA256.hexdigest(File.binread(FALLBACK_IMAGE)))
 
       json(
         language: 'ruby',
