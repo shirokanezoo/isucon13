@@ -10,12 +10,15 @@ require 'securerandom'
 require 'sinatra/base'
 require 'sinatra/json'
 
+require_relative 'tags'
+
 module Isupipe
   class App < Sinatra::Base
     enable :logging
     set :show_exceptions, :after_handler
     set :sessions, domain: 'u.isucon.dev', path: '/', expire_after: 1000*60
     set :session_secret, ENV.fetch('ISUCON13_SESSION_SECRETKEY', 'isucon13_session_cookiestore_defaultsecret').unpack('H*')[0]
+    set :public_folder, File.expand_path('../public', __dir__)
 
     POWERDNS_SUBDOMAIN_ADDRESS = ENV.fetch('ISUCON13_POWERDNS_SUBDOMAIN_ADDRESS')
 
@@ -106,12 +109,8 @@ module Isupipe
         owner_model = tx.xquery('SELECT * FROM users WHERE id = ?', livestream_model.fetch(:user_id)).first
         owner = fill_user_response(tx, owner_model)
 
-        tags = tx.xquery('SELECT * FROM livestream_tags WHERE livestream_id = ?', livestream_model.fetch(:id)).map do |livestream_tag_model|
-          tag_model = tx.xquery('SELECT * FROM tags WHERE id = ?', livestream_tag_model.fetch(:tag_id)).first
-          {
-            id: tag_model.fetch(:id),
-            name: tag_model.fetch(:name),
-          }
+        tags = tx.xquery('SELECT tag_id FROM livestream_tags WHERE livestream_id = ?', livestream_model.fetch(:id)).map do |livestream_tag_model|
+          TAGS_BY_ID[livestream_tag_model.fetch(:tag_id)]
         end
 
         livestream_model.slice(:id, :title, :description, :playlist_url, :thumbnail_url, :start_at, :end_at).merge(
@@ -200,17 +199,8 @@ module Isupipe
 
     # top
     get '/api/tag' do
-      tag_models = db_transaction do |tx|
-        tx.query('SELECT * FROM tags')
-      end
-
       json(
-        tags: tag_models.map { |tag_model|
-          {
-            id: tag_model.fetch(:id),
-            name: tag_model.fetch(:name),
-          }
-        },
+        tags: TAGS,
       )
     end
 
@@ -313,7 +303,7 @@ module Isupipe
         livestream_models =
           if key_tag_name != ''
             # タグによる取得
-            tag_id_list = tx.xquery('SELECT id FROM tags WHERE name = ?', key_tag_name, as: :array).map(&:first)
+            tag_id_list = [ TAGS_BY_NAME[key_tag_name].fetch(:id) ].reject(&:nil?)
             tx.xquery('SELECT * FROM livestream_tags WHERE tag_id IN (?) ORDER BY livestream_id DESC', tag_id_list).map do |key_tagged_livestream|
               tx.xquery('SELECT * FROM livestreams WHERE id = ?', key_tagged_livestream.fetch(:livestream_id)).first
             end
@@ -1038,6 +1028,10 @@ module Isupipe
       end
 
       json(total_tip:)
+    end
+
+    get '/*' do
+      send_file File.join(settings.public_folder, 'index.html')
     end
   end
 end
