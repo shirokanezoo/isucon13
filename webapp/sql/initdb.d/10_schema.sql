@@ -7,7 +7,7 @@ CREATE TABLE `users` (
   `display_name` VARCHAR(255) NOT NULL,
   `password` VARCHAR(255) NOT NULL,
   `description` TEXT NOT NULL,
-  `icon_hash` VARCHAR(255) NOT NULL,
+  `icon_hash` VARCHAR(255) NOT NULL DEFAULT 'd9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0',
   UNIQUE `uniq_user_name` (`name`)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
