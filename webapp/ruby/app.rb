@@ -541,7 +541,6 @@ module Isupipe
         end
 
         rows = tx.xquery(query, livestream_id).to_a
-        ls_users = users_preload(tx, rows.map { _1.fetch(:user_id) })
         rows.map do |livecomment_model|
           # fill_livecomment_response
           {
@@ -549,7 +548,7 @@ module Isupipe
             comment: livecomment_model.fetch(:l_comment),
             tip: livecomment_model.fetch(:l_tip),
             created_at: livecomment_model.fetch(:l_created_at),
-            user: ls_users[livecomment_model.fetch(:user_id)] || fill_user_response(tx, livecomment_model),
+            user: fill_user_response(tx, livecomment_model),
             livestream:,
           }
         end
