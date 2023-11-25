@@ -764,7 +764,7 @@ module Isupipe
         rows = tx.xquery(query, livestream_id).to_a
         all_users = users_preload(tx, [
           livestream_model.fetch(:user_id),
-          *reactions.map { _1.fetch(:user_id) },
+          *rows.map { _1.fetch(:user_id) },
         ])
         rows.map do |reaction_model|
           fill_reaction_response(tx, reaction_model, livestream_model:, all_tags: ls_tags, all_users:)
