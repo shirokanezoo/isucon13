@@ -545,18 +545,14 @@ module Isupipe
         end
 
         # スパム判定
-        tx.xquery('SELECT id, user_id, livestream_id, word FROM ng_words WHERE user_id = ? AND livestream_id = ?', livestream_model.fetch(:user_id), livestream_model.fetch(:id)).each do |ng_word|
-          query = <<~SQL
-            SELECT COUNT(*)
-            FROM
-            (SELECT ? AS text) AS texts
-            INNER JOIN
-            (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-            ON texts.text LIKE patterns.pattern
-          SQL
-          hit_spam = tx.xquery(query, req.comment, ng_word.fetch(:word), as: :array).first[0]
+        tx.xquery(
+          'SELECT id, user_id, livestream_id, word FROM ng_words WHERE user_id = ? AND livestream_id = ?',
+          livestream_model.fetch(:user_id), livestream_model.fetch(:id)
+        ).each do |ng_word|
+          hit_spam = req.comment.include?(ng_word.fetch(:word))
           logger.info("[hit_spam=#{hit_spam}] comment = #{req.comment}")
-          if hit_spam >= 1
+
+          if hit_spam
             raise HttpError.new(400, 'このコメントがスパム判定されました')
           end
         end
@@ -653,43 +649,29 @@ module Isupipe
         tx.xquery('INSERT INTO ng_words(user_id, livestream_id, word, created_at) VALUES (?, ?, ?, ?)', user_id, livestream_id, req.ng_word, Time.now.to_i)
         word_id = tx.last_id
 
-        # NGワードにヒットする過去の投稿も全削除する
-        tx.xquery('SELECT * FROM ng_words WHERE livestream_id = ?', livestream_id).each do |ng_word|
-          query = <<~SQL
-            SELECT * FROM livecomments
-            WHERE
-            livestream_id = ? AND
-            (SELECT COUNT(*)
-            FROM
-            (SELECT ? AS text) AS texts
-            INNER JOIN
-            (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-            ON texts.text LIKE patterns.pattern) >= 1
-          SQL
+        # 過去の NG ワードはスキャン不要
+        livecomments = tx.xquery('SELECT * FROM livecomments WHERE livestream_id = ? AND comment LIKE ?', livestream_id, "%#{req.ng_word}%")
+        total_tips = livecomments.map {|lc| lc.fetch(:tip) }.inject(:+)
 
-          livecomments = tx.xquery(query, livestream_id, ng_word.fetch(:word)).to_a
-          total_tips = livecomments.map {|lc| lc.fetch(:tip) }.inject(:+)
+        tx.xquery('DELETE FROM livecomments WHERE id IN (?)', livecomments.map {|lc| lc.fetch(:id) })
+        tx.xquery('UPDATE users SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, livestream_model.fetch(:user_id))
 
-          tx.xquery('DELETE FROM livecomments WHERE id IN (?)', livecomments.map {|lc| lc.fetch(:id) })
-          tx.xquery('UPDATE users SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, livestream_model.fetch(:user_id))
-
-          # # ライブコメント一覧取得
-          # tx.xquery('SELECT * FROM livecomments').each do |livecomment|
-          #   query = <<~SQL
-          #     DELETE FROM livecomments
-          #     WHERE
-          #     id = ? AND
-          #     livestream_id = ? AND
-          #     (SELECT COUNT(*)
-          #     FROM
-          #     (SELECT ? AS text) AS texts
-          #     INNER JOIN
-          #     (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-          #     ON texts.text LIKE patterns.pattern) >= 1
-          #   SQL
-          #   tx.xquery(query, livecomment.fetch(:id), livestream_id, livecomment.fetch(:comment), ng_word.fetch(:word))
-          # end
-        end
+        # # ライブコメント一覧取得
+        # tx.xquery('SELECT * FROM livecomments').each do |livecomment|
+        #   query = <<~SQL
+        #     DELETE FROM livecomments
+        #     WHERE
+        #     id = ? AND
+        #     livestream_id = ? AND
+        #     (SELECT COUNT(*)
+        #     FROM
+        #     (SELECT ? AS text) AS texts
+        #     INNER JOIN
+        #     (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
+        #     ON texts.text LIKE patterns.pattern) >= 1
+        #   SQL
+        #   tx.xquery(query, livecomment.fetch(:id), livestream_id, livecomment.fetch(:comment), ng_word.fetch(:word))
+        # end
 
         word_id
       end
