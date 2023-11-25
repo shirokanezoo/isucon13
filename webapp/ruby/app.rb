@@ -348,8 +348,9 @@ module Isupipe
             tx.xquery(query).to_a
           end
 
+        ls_tags = livestream_tags_preload(tx, livestream_models)
         livestream_models.map do |livestream_model|
-          fill_livestream_response(tx, livestream_model)
+          fill_livestream_response(tx, livestream_model, all_tags: ls_tags)
         end
       end
 
