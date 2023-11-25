@@ -8,6 +8,12 @@ CREATE TABLE `users` (
   `password` VARCHAR(255) NOT NULL,
   `description` TEXT NOT NULL,
   `icon_hash` VARCHAR(255) NOT NULL DEFAULT 'd9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0',
+
+  `total_tips` BIGINT NOT NULL DEFAULT 0,
+  `total_reactions` BIGINT NOT NULL DEFAULT 0,
+  `score` BIGINT NOT NULL DEFAULT 0,
+  `dark_mode` BOOLEAN NOT NULL DEFAULT false,
+
   UNIQUE `uniq_user_name` (`name`)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
@@ -37,6 +43,10 @@ CREATE TABLE `livestreams` (
   `description` text NOT NULL,
   `playlist_url` VARCHAR(255) NOT NULL,
   `thumbnail_url` VARCHAR(255) NOT NULL,
+
+  `total_tips` BIGINT NOT NULL DEFAULT 0,
+  `total_reactions` BIGINT NOT NULL DEFAULT 0,
+
   `start_at` BIGINT NOT NULL,
   `end_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
