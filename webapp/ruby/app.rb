@@ -952,7 +952,7 @@ module Isupipe
           io.seek(0, IO::SEEK_END)
           io.puts "#{req.name} IN A #{POWERDNS_SUBDOMAIN_ADDRESS}"
         end
-        spawn('nsd-control', 'reload', 'u.isucon.dev')
+        system('nsd-control', 'reload', 'u.isucon.dev', exception: true)
 
         # アイコン登録
         FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, req.name))
