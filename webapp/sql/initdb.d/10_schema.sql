@@ -100,6 +100,7 @@ CREATE TABLE `livecomments` (
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 alter table livecomments add index idx1 (livestream_id, tip);
+alter table livecomments add index idx2 (livestream_id, created_at desc);
 
 -- ユーザからのライブコメントのスパム報告 / WITH INSERT
 CREATE TABLE `livecomment_reports` (
