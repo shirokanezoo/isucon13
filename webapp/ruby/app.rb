@@ -128,7 +128,7 @@ module Isupipe
       end
 
       def livestream_tags_preload(tx, livestream_models)
-        all_tags = tx.xquery('select livestreams.livestream_id, livestream_tags.tag_id from livestream_tags where livestream_id in (?)', [livestream_models.map { _1.fetch(:id) }]).to_a.group_by do |row|
+        all_tags = tx.xquery('select livestream_tags.livestream_id, livestream_tags.tag_id from livestream_tags where livestream_id in (?)', [livestream_models.map { _1.fetch(:id) }]).to_a.group_by do |row|
           row.fetch(:livestream_id)
         end.transform_values do |vs|
           vs.map { TAGS_BY_ID[_1.fetch(:tag_id)] }
@@ -687,12 +687,11 @@ module Isupipe
 
         # 過去の NG ワードはスキャン不要
         livecomments = tx.xquery('SELECT * FROM livecomments WHERE livestream_id = ? AND comment LIKE ?', livestream_id, "%#{req.ng_word}%")
-        unless livecomments.empty?
-          total_tips = livecomments.map {|lc| lc.fetch(:tip) }.inject(:+)
-          tx.xquery("DELETE FROM livecomments WHERE id IN (?)", livecomments.map {|lc| lc.fetch(:id) })
-          tx.xquery('UPDATE users SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, user_id)
-          tx.xquery('UPDATE livestreams SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, livestream_id)
-        end
+        total_tips = livecomments.map {|lc| lc.fetch(:tip) }.inject(:+)
+
+        tx.xquery("DELETE FROM livecomments WHERE id IN (?)", livecomments.map {|lc| lc.fetch(:id) })
+        tx.xquery('UPDATE users SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, user_id)
+        tx.xquery('UPDATE livestreams SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, livestream_id)
 
         # # ライブコメント一覧取得
         # tx.xquery('SELECT * FROM livecomments').each do |livecomment|
