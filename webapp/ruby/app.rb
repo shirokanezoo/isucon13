@@ -686,7 +686,7 @@ module Isupipe
         word_id = tx.last_id
 
         # 過去の NG ワードはスキャン不要
-        livecomments = tx.xquery('SELECT * FROM livecomments WHERE livestream_id = ? AND comment LIKE ?', livestream_id, "%#{req.ng_word}%")
+        livecomments = tx.xquery('SELECT * FROM livecomments WHERE livestream_id = ? AND comment LIKE ?', livestream_id, "%#{req.ng_word}%").to_a
 
         unless livecomments.empty?
           tx.xquery("DELETE FROM livecomments WHERE id IN (?)", [livecomments.map {|lc| lc.fetch(:id) }])
