@@ -134,3 +134,4 @@ CREATE TABLE `reactions` (
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 alter table reactions add index idx1 (livestream_id);
+alter table reactions add index idx2 (livestream_id, created_at desc);
