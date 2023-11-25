@@ -9,8 +9,13 @@ require 'open3'
 require 'securerandom'
 require 'sinatra/base'
 require 'sinatra/json'
+require 'fileutils'
 
 require_relative 'tags'
+
+WEBAPP_DIR = File.expand_path('..', __dir__)
+PUBLIC_DIR = File.expand_path('../public', __dir__)
+ICON_BASE_DIR = File.join('../files', __dir__)
 
 module Isupipe
   class App < Sinatra::Base
@@ -161,15 +166,6 @@ module Isupipe
       def fill_user_response(tx, user_model)
         theme_model = tx.xquery('SELECT * FROM themes WHERE user_id = ?', user_model.fetch(:id)).first
 
-        icon_model = tx.xquery('SELECT image FROM icons WHERE user_id = ?', user_model.fetch(:id)).first
-        image =
-          if icon_model
-            icon_model.fetch(:image)
-          else
-            File.binread(FALLBACK_IMAGE)
-          end
-        icon_hash = Digest::SHA256.hexdigest(image)
-
         {
           id: user_model.fetch(:id),
           name: user_model.fetch(:name),
@@ -179,7 +175,7 @@ module Isupipe
             id: theme_model.fetch(:id),
             dark_mode: theme_model.fetch(:dark_mode),
           },
-          icon_hash:,
+          icon_hash: user_model.fetch(:icon_hash),
         }
       end
     end
@@ -191,6 +187,16 @@ module Isupipe
         logger.warn("init.sh failed with out=#{out}")
         halt 500
       end
+
+      # アイコン削除
+      FileUtils.rm_rf(ICON_BASE_DIR)
+      FileUtils.mkdir_p(ICON_BASE_DIR)
+
+      # 初期状態は全員 FALLBACK_IMAGE がアイコン
+      db.xquery('SELECT name FROM users').each do |user|
+        FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, user.fetch(:name)))
+      end
+      db.xquery('UPDATE users SET icon_hash = ?', Digest::SHA256.hexdigest(File.binread(FALLBACK_IMAGE)))
 
       json(
         language: 'ruby',
@@ -715,23 +721,22 @@ module Isupipe
     BCRYPT_DEFAULT_COST = 4
     FALLBACK_IMAGE = '../img/NoImage.jpg'
 
+    # これもう nginx でなんとかしてください
+    # 同等 path っぽいとこに置いてあります
     get '/api/user/:username/icon' do
       username = params[:username]
 
-      image = db_transaction do |tx|
-        user = tx.xquery('SELECT * FROM users WHERE name = ?', username).first
-        unless user
-          raise HttpError.new(404, 'not found user that has the given username')
-        end
-        tx.xquery('SELECT image FROM icons WHERE user_id = ?', user.fetch(:id)).first
-      end
+      # これはうまいことやる
+      # user = tx.xquery('SELECT * FROM users WHERE name = ? LIMIT 1', username).first
+      # unless user
+      #   raise HttpError.new(404, 'not found user that has the given username')
+      # end
 
-      content_type 'image/jpeg'
-      if image
-        image[:image]
-      else
-        send_file FALLBACK_IMAGE
-      end
+      icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
+
+      raise HttpError.new(404, 'not found user that has the given username') unless File.exist?(icon_path)
+
+      send_file icon_path
     end
 
     PostIconRequest = Data.define(:image)
@@ -748,14 +753,22 @@ module Isupipe
         raise HttpError.new(401)
       end
 
-      req = decode_request_body(PostIconRequest)
-      image = Base64.decode64(req.image)
+      user = tx.xquery('SELECT * FROM users WHERE id = ?', user_id).first
+      icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
 
-      icon_id = db_transaction do |tx|
-        tx.xquery('DELETE FROM icons WHERE user_id = ?', user_id)
-        tx.xquery('INSERT INTO icons (user_id, image) VALUES (?, ?)', user_id, image)
-        tx.last_id
-      end
+      File.binwrite(icon_dir, req.image)
+
+      tx.xquery('UPDATE users SET icon_hash = ? WHERE id = ?', Digest::SHA256.hexdigest(req.image), user_id)
+
+      # req = decode_request_body(PostIconRequest)
+      # image = Base64.decode64(req.image)
+
+      # icon_id = db_transaction do |tx|
+      #   tx.xquery('DELETE FROM icons WHERE user_id = ?', user_id)
+      #   tx.xquery('INSERT INTO icons (user_id, image) VALUES (?, ?)', user_id, image)
+      #   tx.last_id
+      # end
+      icon_id = user[:id]
 
       status 201
       json(
@@ -814,6 +827,9 @@ module Isupipe
         unless status.success?
           raise HttpError.new(500, "pdnsutil failed with out=#{out}")
         end
+
+        # アイコン登録
+        FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, req.name))
 
         fill_user_response(tx, {
           id: user_id,
