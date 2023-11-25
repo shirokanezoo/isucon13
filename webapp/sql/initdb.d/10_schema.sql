@@ -48,6 +48,7 @@ CREATE TABLE `livestreams` (
 
   `total_tips` BIGINT NOT NULL DEFAULT 0,
   `total_reactions` BIGINT NOT NULL DEFAULT 0,
+  `score` BIGINT NOT NULL DEFAULT 0,
 
   `start_at` BIGINT NOT NULL,
   `end_at` BIGINT NOT NULL
