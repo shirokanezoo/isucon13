@@ -730,18 +730,12 @@ module Isupipe
     # 同等 path っぽいとこに置いてあります
     get '/api/user/:username/icon' do
       username = params[:username]
-
-      # これはうまいことやる
-      # user = tx.xquery('SELECT * FROM users WHERE name = ? LIMIT 1', username).first
-      # unless user
-      #   raise HttpError.new(404, 'not found user that has the given username')
-      # end
-
-      icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
-
-      raise HttpError.new(404, 'not found user that has the given username') unless File.exist?(icon_path)
-
-      send_file icon_path
+      これはうまいことやる
+      user = tx.xquery('SELECT * FROM users WHERE name = ? LIMIT 1', username).first
+      unless user
+        raise HttpError.new(404, 'not found user that has the given username')
+      end
+      send_file FALLBACK_IMAGE
     end
 
     PostIconRequest = Data.define(:image)
