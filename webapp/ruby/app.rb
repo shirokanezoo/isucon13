@@ -310,9 +310,9 @@ module Isupipe
         raise HttpError.new(400, 'bad reservation time range')
       end
 
-      if (reserve_end_at - reserve_start_at) <= 7200
-        sleep 1
-      end
+      # if (reserve_end_at - reserve_start_at) <= 7200
+      #   sleep 1
+      # end
 
       livestream = db_transaction do |tx|
 
