@@ -17,6 +17,8 @@ CREATE TABLE `users` (
   UNIQUE `uniq_user_name` (`name`)
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
+alter table users add index idx1 (score, name);
+
 -- プロフィール画像 / WITH INSERT / WITH DELETE
 CREATE TABLE `icons` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
