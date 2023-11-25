@@ -164,16 +164,14 @@ module Isupipe
       end
 
       def fill_user_response(tx, user_model)
-        theme_model = tx.xquery('SELECT * FROM themes WHERE user_id = ?', user_model.fetch(:id)).first
-
         {
           id: user_model.fetch(:id),
           name: user_model.fetch(:name),
           display_name: user_model.fetch(:display_name),
           description: user_model.fetch(:description),
           theme: {
-            id: theme_model.fetch(:id),
-            dark_mode: theme_model.fetch(:dark_mode),
+            id: user_model.fetch(:id),
+            dark_mode: user_model.fetch(:dark_mode),
           },
           icon_hash: user_model.fetch(:icon_hash),
         }
@@ -221,17 +219,14 @@ module Isupipe
 
       username = params[:username]
 
-      theme_model = db_transaction do |tx|
-        user_model = tx.xquery('SELECT id FROM users WHERE name = ?', username).first
-        unless user_model
-          raise HttpError.new(404)
-        end
-        tx.xquery('SELECT * FROM themes WHERE user_id = ?', user_model.fetch(:id)).first
+      user_model = tx.xquery('SELECT id, dark_mode FROM users WHERE name = ?', username).first
+      unless user_model
+        raise HttpError.new(404)
       end
 
       json(
-        id: theme_model.fetch(:id),
-        dark_mode: theme_model.fetch(:dark_mode),
+        id: user_model.fetch(:id),
+        dark_mode: user_model.fetch(:dark_mode),
       )
     end
 
@@ -555,6 +550,9 @@ module Isupipe
         tx.xquery('INSERT INTO livecomments (user_id, livestream_id, comment, tip, created_at) VALUES (?, ?, ?, ?, ?)', user_id, livestream_id, req.comment, req.tip, now)
         livecomment_id = tx.last_id
 
+        # tips 数を加算
+        tx.xquery('UPDATE users SET total_tips = total_tips + ? WHERE id = ?', req.tip, livestream_model.fetch(:user_id))
+
         fill_livecomment_response(tx, {
           id: livecomment_id,
           user_id:,
@@ -642,22 +640,40 @@ module Isupipe
 
         # NGワードにヒットする過去の投稿も全削除する
         tx.xquery('SELECT * FROM ng_words WHERE livestream_id = ?', livestream_id).each do |ng_word|
-          # ライブコメント一覧取得
-          tx.xquery('SELECT * FROM livecomments').each do |livecomment|
-            query = <<~SQL
-              DELETE FROM livecomments
-              WHERE
-              id = ? AND
-              livestream_id = ? AND
-              (SELECT COUNT(*)
-              FROM
-              (SELECT ? AS text) AS texts
-              INNER JOIN
-              (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-              ON texts.text LIKE patterns.pattern) >= 1
-            SQL
-            tx.xquery(query, livecomment.fetch(:id), livestream_id, livecomment.fetch(:comment), ng_word.fetch(:word))
-          end
+          query = <<~SQL
+            SELECT * FROM livecomments
+            WHERE
+            livestream_id = ? AND
+            (SELECT COUNT(*)
+            FROM
+            (SELECT ? AS text) AS texts
+            INNER JOIN
+            (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
+            ON texts.text LIKE patterns.pattern) >= 1
+          SQL
+
+          livecomments = tx.xquery(query, livestream_id, ng_word.fetch(:word)).to_a
+          total_tips = livecomments.map {|lc| lc.fetch(:tip) }.inject(:+)
+
+          tx.xquery('DELETE FROM livecomments WHERE id IN (?)', livecomments.map {|lc| lc.fetch(:id) })
+          tx.xquery('UPDATE users SET total_tips = total_tips - ? WHERE id = ?', total_tips, livestream_model.fetch(:user_id))
+
+          # # ライブコメント一覧取得
+          # tx.xquery('SELECT * FROM livecomments').each do |livecomment|
+          #   query = <<~SQL
+          #     DELETE FROM livecomments
+          #     WHERE
+          #     id = ? AND
+          #     livestream_id = ? AND
+          #     (SELECT COUNT(*)
+          #     FROM
+          #     (SELECT ? AS text) AS texts
+          #     INNER JOIN
+          #     (SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
+          #     ON texts.text LIKE patterns.pattern) >= 1
+          #   SQL
+          #   tx.xquery(query, livecomment.fetch(:id), livestream_id, livecomment.fetch(:comment), ng_word.fetch(:word))
+          # end
         end
 
         word_id
@@ -706,6 +722,10 @@ module Isupipe
       req = decode_request_body(PostReactionRequest)
 
       reaction = db_transaction do |tx|
+        # リアクション数をインクリメント
+        livestream = tx.xquery('SELECT * FROM livestreams WHERE id = ?', livestream_id).first
+        tx.xquery('UPDATE users SET total_reactions = total_reactions + 1 WHERE id = ?', livestream.fetch(:user_id))
+
         created_at = Time.now.to_i
         tx.xquery('INSERT INTO reactions (user_id, livestream_id, emoji_name, created_at) VALUES (?, ?, ?, ?)', user_id, livestream_id, req.emoji_name, created_at)
         reaction_id = tx.last_id
@@ -819,10 +839,8 @@ module Isupipe
       hashed_password = BCrypt::Password.create(req.password, cost: BCRYPT_DEFAULT_COST)
 
       user = db_transaction do |tx|
-        tx.xquery('INSERT INTO users (name, display_name, description, password) VALUES(?, ?, ?, ?)', req.name, req.display_name, req.description, hashed_password)
+        tx.xquery('INSERT INTO users (name, display_name, description, password, dark_mode) VALUES(?, ?, ?, ?, ?)', req.name, req.display_name, req.description, hashed_password, req.theme.fetch(:dark_mode))
         user_id = tx.last_id
-
-        tx.xquery('INSERT INTO themes (user_id, dark_mode) VALUES(?, ?)', user_id, req.theme.fetch(:dark_mode))
 
         out, status = Open3.capture2e('pdnsutil', 'add-record', 'u.isucon.dev', req.name, 'A', '0', POWERDNS_SUBDOMAIN_ADDRESS)
         unless status.success?
@@ -838,6 +856,10 @@ module Isupipe
           display_name: req.display_name,
           description: req.description,
           icon_hash: "d9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0",
+          theme: {
+            id: user_id,
+            dark_mode: req.theme.fetch(:dark_mode),
+          }
         })
       end
 
@@ -915,46 +937,26 @@ module Isupipe
         end
 
         # ランク算出
-        users = tx.xquery('SELECT * FROM users').to_a
-
-        ranking = users.map do |user|
-          reactions = tx.xquery(<<~SQL, user.fetch(:id), as: :array).first[0]
-            SELECT COUNT(*) FROM users u
-            INNER JOIN livestreams l ON l.user_id = u.id
-            INNER JOIN reactions r ON r.livestream_id = l.id
-            WHERE u.id = ?
-          SQL
-
-          tips = tx.xquery(<<~SQL, user.fetch(:id), as: :array).first[0]
-            SELECT IFNULL(SUM(l2.tip), 0) FROM users u
-            INNER JOIN livestreams l ON l.user_id = u.id
-            INNER JOIN livecomments l2 ON l2.livestream_id = l.id
-            WHERE u.id = ?
-          SQL
-
-          score = reactions + tips
-          UserRankingEntry.new(username: user.fetch(:name), score:)
-        end
-
-        ranking.sort_by! { |entry| [entry.score, entry.username] }
-        ridx = ranking.rindex { |entry| entry.username == username }
-        rank = ranking.size - ridx
+        users = tx.xquery('SELECT * FROM users ORDER BY score DESC, name ASC').to_a
+        ridx = users.rindex { |entry| entry.fetch(:name) == username }
+        rank = users.size - ridx
 
         # リアクション数
-        total_reactions = tx.xquery(<<~SQL, username, as: :array).first[0]
-          SELECT COUNT(*) FROM users u
-          INNER JOIN livestreams l ON l.user_id = u.id
-          INNER JOIN reactions r ON r.livestream_id = l.id
-          WHERE u.name = ?
-        SQL
+        total_reactions = user.fetch(:total_reactions)
+        # total_reactions = tx.xquery(<<~SQL, username, as: :array).first[0]
+        #   SELECT COUNT(*) FROM users u
+        #   INNER JOIN livestreams l ON l.user_id = u.id
+        #   INNER JOIN reactions r ON r.livestream_id = l.id
+        #   WHERE u.name = ?
+        # SQL
+
+        total_tip = user.fetch(:total_tips)
 
         # ライブコメント数、チップ合計
         total_livecomments = 0
-        total_tip = 0
         livestreams = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user.fetch(:id))
         livestreams.each do |livestream|
           tx.xquery('SELECT * FROM livecomments WHERE livestream_id = ?', livestream.fetch(:id)).each do |livecomment|
-            total_tip += livecomment.fetch(:tip)
             total_livecomments += 1
           end
         end
