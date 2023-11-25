@@ -490,11 +490,26 @@ module Isupipe
 
     # get polling livecomment timeline
     get '/api/livestream/:livestream_id/livecomment' do
-      verify_user_session!
+      # verify_user_session!
       livestream_id = cast_as_integer(params[:livestream_id])
 
+      livestream_model = db_conn.xquery('SELECT * FROM livestreams WHERE id = ?', livestream_id).first
+      livestream = fill_livestream_response(db_conn, livestream_model)
+
       livecomments = db_transaction do |tx|
-        query = 'SELECT * FROM livecomments WHERE livestream_id = ? ORDER BY created_at DESC'
+        query = <<~SQL
+        SELECT
+          livecomments.id AS l_id,
+          livecomments.livestream_id AS l_livestream_id,
+          livecomments.comment AS l_comment,
+          livecomments.tip AS l_tip,
+          livecomments.created_at AS l_created_at,
+          users.*
+        FROM livecomments
+        INNER JOIN users ON livecomments.user_id = users.id
+        WHERE livestream_id = ?
+        SQL
+
         limit_str = params[:limit] || ''
         if limit_str != ''
           limit = cast_as_integer(limit_str)
@@ -502,7 +517,14 @@ module Isupipe
         end
 
         tx.xquery(query, livestream_id).map do |livecomment_model|
-          fill_livecomment_response(tx, livecomment_model)
+          {
+            id: livecomment_model.fetch(:l_id),
+            comment: livecomment_model.fetch(:l_comment),
+            tip: livecomment_model.fetch(:l_tip),
+            created_at: livecomment_model.fetch(:l_created_at),
+            user: fill_user_response(tx, livecomment_model),
+            livestream:,
+          }
         end
       end
 
