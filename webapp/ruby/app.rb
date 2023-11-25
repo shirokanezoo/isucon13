@@ -640,7 +640,7 @@ module Isupipe
 
         # NGワードにヒットする過去の投稿も全削除する
         tx.xquery('SELECT * FROM ng_words WHERE livestream_id = ?', livestream_id).each do |ng_word|
-          query <<~SQL
+          query = <<~SQL
             SELECT * FROM livecomments
             WHERE
             livestream_id = ? AND
