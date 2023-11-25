@@ -234,7 +234,7 @@ module Isupipe
 
       username = params[:username]
 
-      user_model = tx.xquery('SELECT id, dark_mode FROM users WHERE name = ?', username).first
+      user_model = db_conn.xquery('SELECT id, dark_mode FROM users WHERE name = ?', username).first
       unless user_model
         raise HttpError.new(404)
       end
