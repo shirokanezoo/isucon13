@@ -835,14 +835,13 @@ module Isupipe
 
         # アイコン登録
         FileUtils.cp(FALLBACK_IMAGE, File.join(ICON_BASE_DIR, req.name))
-        # user[:icon_hash] = Digest::SHA256.hexdigest(File.binread(FALLBACK_IMAGE))
-        user[:icon_hash] = "d9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0"
 
         fill_user_response(tx, {
           id: user_id,
           name: req.name,
           display_name: req.display_name,
           description: req.description,
+          icon_hash: "d9f8294e9d895f81ce62e73dc7d5dff862a4fa40bd4e0fecf53f7526a8edcac0",
         })
       end
 
