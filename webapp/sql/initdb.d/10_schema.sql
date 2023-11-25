@@ -53,6 +53,8 @@ CREATE TABLE `livestreams` (
   `end_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
+alter table livestreams add index idx1 (user_id);
+
 -- ライブ配信予約枠 / WITH UPDATE
 CREATE TABLE `reservation_slots` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
