@@ -26,6 +26,8 @@ CREATE TABLE `themes` (
   `dark_mode` BOOLEAN NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
+alter table themes add index idx1 (user_id);
+
 -- ライブ配信 / WITH INSERT
 CREATE TABLE `livestreams` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -82,7 +84,7 @@ CREATE TABLE `livecomments` (
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
-alter table livecomments add index idx1 (livestream_id);
+alter table livecomments add index idx1 (livestream_id, tip);
 
 -- ユーザからのライブコメントのスパム報告 / WITH INSERT
 CREATE TABLE `livecomment_reports` (
