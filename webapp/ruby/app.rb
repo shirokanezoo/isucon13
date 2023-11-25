@@ -184,7 +184,7 @@ module Isupipe
         lines = db_conn.xquery('SELECT name FROM users').map do |user|
           "#{user.fetch(:name)} IN A #{POWERDNS_SUBDOMAIN_ADDRESS}"
         end
-        "#{POWERDNS_SUBDOMAIN_ADDRESS}\n#{lines.join(?\n)}\n"
+        "#{ZONE_HEADER}\n#{lines.join(?\n)}\n"
       end
     end
 
