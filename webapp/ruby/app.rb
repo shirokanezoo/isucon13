@@ -168,12 +168,12 @@ module Isupipe
         )
       end
 
-      def fill_reaction_response(tx, reaction_model, all_tags: nil)
+      def fill_reaction_response(tx, reaction_model, livestream_model: nil, all_tags: nil, all_users: nil)
         user_model = tx.xquery('SELECT * FROM users WHERE id = ?', reaction_model.fetch(:user_id)).first
         user = fill_user_response(tx, user_model)
 
-        livestream_model = tx.xquery('SELECT * FROM livestreams WHERE id = ?', reaction_model.fetch(:livestream_id)).first
-        livestream = fill_livestream_response(tx, livestream_model, all_tags: all_tags)
+        livestream_model = livestream_model || tx.xquery('SELECT * FROM livestreams WHERE id = ?', reaction_model.fetch(:livestream_id)).first
+        livestream = fill_livestream_response(tx, livestream_model, all_tags: all_tags, all_users: nil)
 
         reaction_model.slice(:id, :emoji_name, :created_at).merge(
           user:,
@@ -751,6 +751,8 @@ module Isupipe
       livestream_id = cast_as_integer(params[:livestream_id])
       ls_tags = livestream_tags_preload(tx, [{id: livestream_id}])
 
+      livestream_model = db_conn.xquery('select * from livestreams where id = ?',livestream_id).first 
+
       reactions = db_transaction do |tx|
         query = 'SELECT * FROM reactions WHERE livestream_id = ? ORDER BY created_at DESC'
         limit_str = params[:limit] || ''
@@ -759,8 +761,13 @@ module Isupipe
           query = "#{query} LIMIT #{limit}"
         end
 
-        tx.xquery(query, livestream_id).map do |reaction_model|
-          fill_reaction_response(tx, reaction_model, all_tags: ls_tags)
+        rows = tx.xquery(query, livestream_id).to_a
+        all_users = users_preload(tx, [
+          livestream_model.fetch(:user_id),
+          *reactions.map { _1.fetch(:user_id) },
+        ])
+        rows.map do |reaction_model|
+          fill_reaction_response(tx, reaction_model, livestream_model:, all_tags: ls_tags, all_users:)
         end
       end
 
