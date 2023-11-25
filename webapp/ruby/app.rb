@@ -765,7 +765,7 @@ module Isupipe
       image = Base64.decode64(req.image)
       File.binwrite(icon_path, image)
 
-      db_conn.xquery('UPDATE users SET icon_hash = ? WHERE id = ?', Digest::SHA256.hexdigest(req.image), user_id)
+      db_conn.xquery('UPDATE users SET icon_hash = ? WHERE id = ?', Digest::SHA256.hexdigest(image), user_id)
 
       # req = decode_request_body(PostIconRequest)
       # image = Base64.decode64(req.image)
