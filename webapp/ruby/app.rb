@@ -653,7 +653,7 @@ module Isupipe
           SQL
 
           livecomments = tx.xquery(query, livestream_id, ng_word.fetch(:word)).to_a
-          total_tips = livecomments.map {|lc| lc.fetch(:tip) }.sum
+          total_tips = livecomments.map {|lc| lc.fetch(:tip) }.inject(:+)
 
           tx.xquery('DELETE FROM livecomments WHERE id IN (?)', livecomments.map {|lc| lc.fetch(:id) })
           tx.xquery('UPDATE users SET total_tips = total_tips - ? WHERE id = ?', total_tips, livestream_model.fetch(:user_id))
