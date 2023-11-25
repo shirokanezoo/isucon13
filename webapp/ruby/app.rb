@@ -181,7 +181,7 @@ module Isupipe
       end
 
       def render_zone_file
-        lines = db.xquery('SELECT name FROM users').map do |user|
+        lines = db_conn.xquery('SELECT name FROM users').map do |user|
           "#{user.fetch(:name)} IN A #{POWERDNS_SUBDOMAIN_ADDRESS}"
         end
         "#{POWERDNS_SUBDOMAIN_ADDRESS}\n#{lines.join(?\n)}\n"
