@@ -20,6 +20,20 @@ ICON_BASE_DIR = File.expand_path('../files', __dir__)
 ZONE_HEADER = File.read(File.join(__dir__, 'header.zone')).gsub(/<ISUCON_SUBDOMAIN_ADDRESS>/, ENV.fetch('ISUCON13_POWERDNS_SUBDOMAIN_ADDRESS'))
 ZONE_FILE = ENV['ISUCON13_ZONE_FILE'] || File.join(File.expand_path('../zones', __dir__), 'u.isucon.dev.zone')
 
+if ENV['MYSQL_QUERY_LOGGER'] == '1'
+  class Mysql2::Client
+    alias_method :original_query, :query
+
+    def query(sql, options = {})
+      now = Time.now
+      result = original_query(sql, options)
+      diff = ((Time.now - now) * 1000).ceil
+      puts "[SQL] (#{diff}ms) #{sql}"
+      result
+    end
+  end
+end
+
 module Isupipe
   class App < Sinatra::Base
     enable :logging
@@ -170,7 +184,7 @@ module Isupipe
       end
 
       def fill_reaction_response(tx, reaction_model, livestream_model: nil, all_tags: nil, all_users: nil)
-        user_model = tx.xquery('SELECT * FROM users WHERE id = ?', reaction_model.fetch(:user_id)).first
+        user_model = (all_users ? all_users[report_model.fetch(:user_id)] : nil ) || tx.xquery('SELECT * FROM users WHERE id = ?', reaction_model.fetch(:user_id)).first
         user = fill_user_response(tx, user_model)
 
         livestream_model = livestream_model || tx.xquery('SELECT * FROM livestreams WHERE id = ?', reaction_model.fetch(:livestream_id)).first
@@ -746,12 +760,12 @@ module Isupipe
     end
 
     get '/api/livestream/:livestream_id/reaction' do
-      verify_user_session!
+      # verify_user_session!
 
       livestream_id = cast_as_integer(params[:livestream_id])
       ls_tags = livestream_tags_preload(db_conn, [{id: livestream_id}])
 
-      livestream_model = db_conn.xquery('select * from livestreams where id = ?',livestream_id).first 
+      livestream_model = db_conn.xquery('select * from livestreams where id = ?',livestream_id).first
 
       reactions = db_transaction do |tx|
         query = 'SELECT * FROM reactions WHERE livestream_id = ? ORDER BY created_at DESC'
