@@ -392,7 +392,7 @@ module Isupipe
       end
 
       livestreams = db_transaction do |tx|
-        ls_rows = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user_id)
+        ls_rows = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user_id).to_a
         ls_tags = livestream_tags_preload(tx, ls_rows)
         ls_users = users_preload(tx, ls_rows.map { _1.fetch(:user_id) })
         ls_rows.map do |livestream_model|
@@ -413,7 +413,7 @@ module Isupipe
           raise HttpError.new(404, 'user not found')
         end
 
-        ls_rows = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user.fetch(:id))
+        ls_rows = tx.xquery('SELECT * FROM livestreams WHERE user_id = ?', user.fetch(:id)).to_a
         ls_tags = livestream_tags_preload(tx, ls_rows)
         ls_users = users_preload(tx, ls_rows.map { _1.fetch(:user_id) })
         ls_rows.map do |livestream_model|
