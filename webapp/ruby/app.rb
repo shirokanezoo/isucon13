@@ -733,7 +733,8 @@ module Isupipe
       # end
 
       icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
-      icon_path = FALLBACK_IMAGE unless File.exist?(icon_path)
+
+      raise HttpError.new(404, 'not found user that has the given username') unless File.exist?(icon_path)
 
       send_file icon_path
     end
