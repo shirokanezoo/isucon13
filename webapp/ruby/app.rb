@@ -503,7 +503,7 @@ module Isupipe
 
         rows = tx.xquery('SELECT * FROM livecomment_reports WHERE livestream_id = ?', livestream_id).to_a
         livecomment_models = rows.empty? ? {}  : (
-          tx.xquery('SELECT * FROM livecomments WHERE id = (?)', rows.map {_1.fetch(:livecomment_id) })
+          tx.xquery('SELECT * FROM livecomments WHERE id IN (?)', rows.map {_1.fetch(:livecomment_id) })
           .map { [_1.fetch(:id), _1] }
           .to_h
         )
