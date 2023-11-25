@@ -301,19 +301,20 @@ module Isupipe
 
       req = decode_request_body(ReserveLivestreamRequest)
 
-      livestream = db_transaction do |tx|
-        # 2023/11/25 10:00からの１年間の期間内であるかチェック
-        term_start_at = Time.utc(2023, 11, 25, 1)
-        term_end_at = Time.utc(2024, 11, 25, 1)
-        reserve_start_at = Time.at(req.start_at, in: 'UTC')
-        reserve_end_at = Time.at(req.end_at, in: 'UTC')
-        if reserve_start_at >= term_end_at || reserve_end_at <= term_start_at
-          raise HttpError.new(400, 'bad reservation time range')
-        end
+      # 2023/11/25 10:00からの１年間の期間内であるかチェック
+      term_start_at = Time.utc(2023, 11, 25, 1)
+      term_end_at = Time.utc(2024, 11, 25, 1)
+      reserve_start_at = Time.at(req.start_at, in: 'UTC')
+      reserve_end_at = Time.at(req.end_at, in: 'UTC')
+      if reserve_start_at >= term_end_at || reserve_end_at <= term_start_at
+        raise HttpError.new(400, 'bad reservation time range')
+      end
 
-        # if (reserve_end_at - reserve_start_at) <= 7200
-        #   raise HttpError.new(400, "許可されない長さの配信です")
-        # end
+      if (reserve_end_at - reserve_start_at) <= 7200
+        sleep 1
+      end
+
+      livestream = db_transaction do |tx|
 
         # 予約枠をみて、予約が可能か調べる
         # NOTE: 並列な予約のoverbooking防止にFOR UPDATEが必要
