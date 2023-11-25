@@ -9,12 +9,12 @@ disable_log_bin
 performance_schema = ON
 
 ## allow insecure passwords
-validate_password.length=4
-validate_password.mixed_case_count=0
-validate_password.number_count=0
-validate_password.special_char_count=0
-validate_password.policy=LOW
-validate_password.check_user_name=OFF
+# validate_password.length=4
+# validate_password.mixed_case_count=0
+# validate_password.number_count=0
+# validate_password.special_char_count=0
+# validate_password.policy=LOW
+# validate_password.check_user_name=OFF
 
 ## slow query log
 slow_query_log
