@@ -166,9 +166,6 @@ module Isupipe
       def fill_user_response(tx, user_model)
         theme_model = tx.xquery('SELECT * FROM themes WHERE user_id = ?', user_model.fetch(:id)).first
 
-        icon_path = File.join(ICON_BASE_DIR, user_model.fetch(:name))
-        icon_hash = Digest::SHA256.hexdigest(File.binread(icon_path))
-
         {
           id: user_model.fetch(:id),
           name: user_model.fetch(:name),
@@ -178,7 +175,7 @@ module Isupipe
             id: theme_model.fetch(:id),
             dark_mode: theme_model.fetch(:dark_mode),
           },
-          icon_hash:,
+          icon_hash: user_model.fetch(:icon_hash),
         }
       end
     end
@@ -195,10 +192,11 @@ module Isupipe
       FileUtils.rm_rf(ICON_BASE_DIR)
       FileUtils.mkdir_p(ICON_BASE_DIR)
 
-      db.xquery('SELECT name FROM users').each do |user|
-        icon_path = File.join(PUBLIC_DIR, 'api/user', user.fetch(:name))
-        FileUtils.cp(FALLBACK_IMAGE, icon_path)
-      end
+      # 初期状態は全員 FALLBACK_IMAGE がアイコン
+      db.xquery(
+        'UPDATE users SET icon_hash = ?',
+        Digest::SHA256.hexdigest(File.binread(FALLBACK_IMAGE))
+      )
 
       json(
         language: 'ruby',
@@ -758,6 +756,8 @@ module Isupipe
       icon_path = File.join(ICON_BASE_DIR, user.fetch(:name))
 
       File.binwrite(icon_dir, req.image)
+
+      tx.xquery('UPDATE users SET icon_hash = ? WHERE id = ?', Digest::SHA256.hexdigest(req.image), user_id)
 
       # req = decode_request_body(PostIconRequest)
       # image = Base64.decode64(req.image)
