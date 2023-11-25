@@ -689,7 +689,7 @@ module Isupipe
         livecomments = tx.xquery('SELECT * FROM livecomments WHERE livestream_id = ? AND comment LIKE ?', livestream_id, "%#{req.ng_word}%").to_a
 
         unless livecomments.empty?
-          tx.xquery("DELETE FROM livecomments WHERE id IN (?)", [livecomments.map {|lc| lc.fetch(:id) }])
+          tx.xquery("DELETE FROM livecomments WHERE id IN (?)", livecomments.map {|lc| lc.fetch(:id) })
           total_tips = livecomments.map {|lc| lc.fetch(:tip) }.inject(:+)
           tx.xquery('UPDATE users SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, user_id)
           tx.xquery('UPDATE livestreams SET total_tips = total_tips - ?, score = score - ? WHERE id = ?', total_tips, total_tips, livestream_id)
