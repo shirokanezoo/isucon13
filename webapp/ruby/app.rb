@@ -131,7 +131,7 @@ module Isupipe
         owner_model = (all_users ? all_users[livestream_model.fetch(:user_id)] : nil ) || tx.xquery('SELECT * FROM users WHERE id = ?', livestream_model.fetch(:user_id)).first
         owner = fill_user_response(tx, owner_model)
 
-        tags = all_tags ? all_tags[livestream_model.fetch(:id)] : tx.xquery('SELECT tag_id FROM livestream_tags WHERE livestream_id = ?', livestream_model.fetch(:id)).map do |livestream_tag_model|
+        tags = (all_tags ? all_tags[livestream_model.fetch(:id)] : nil) || tx.xquery('SELECT tag_id FROM livestream_tags WHERE livestream_id = ?', livestream_model.fetch(:id)).map do |livestream_tag_model|
           TAGS_BY_ID[livestream_tag_model.fetch(:tag_id)]
         end
 
